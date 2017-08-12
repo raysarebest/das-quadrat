@@ -32,7 +32,7 @@ open class Venues: Endpoint {
     /** https://developer.foursquare.com/docs/venues/categories */
     open func categories(_ completionHandler: ResponseClosure? = nil) -> Task {
         let path = "categories"
-        return self.getWithPath(path, parameters: nil, completionHandler: completionHandler)
+        return self.getWithPath(path, parameters: nil, completionHandler: completionHandler, cacheName: "FSQCategories", maxCacheAge: 60 * 60 * 24 * 7)
     }
     
     /** https://developer.foursquare.com/docs/venues/explore */

@@ -11,10 +11,10 @@ import Foundation
 /** A handler used for authorization. */
 public typealias AuthorizationHandler = (Bool, NSError?) -> Void
 
-/** A nandler used by all endpoints. */
+/** A handler used by all endpoints. */
 public typealias ResponseClosure = (_ result: Result) -> Void
 
-/** A nandler for image downloading. */
+/** A handler for image downloading. */
 public typealias DownloadImageClosure = (_ imageData: Data?, _ error: NSError?) -> Void
 
 /** Typealias for parameters dictionary. */
@@ -204,7 +204,7 @@ open class Session {
     }
     
     func processResult(_ result: Result) {
-        if result.HTTPSTatusCode == 401 && self.isAuthorized() {
+        if result.HTTPStatusCode == 401 && self.isAuthorized() {
             self.deathorizeAndNotify()
         }
        self.logger?.session(self, didReceiveResult: result)

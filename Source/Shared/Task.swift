@@ -56,7 +56,7 @@ open class Task {
     }
 }
 
-class DataTask: Task {
+open class DataTask: Task {
     override func constructURLSessionTask() {
         let URLsession = self.session?.URLSession
         self.task = URLsession?.dataTask(with: request.URLRequest(), completionHandler: {
@@ -70,6 +70,75 @@ class DataTask: Task {
                 return Void()
             }
         }) 
+    }
+}
+
+open class PersistentTask: DataTask{
+    open let cacheLocation: URL
+    open let maximumCacheAge: TimeInterval
+    private static let cacheLastUpdatedKey = "LastCacheUpdate"
+    open var isCacheStale: Bool{
+        get{
+            return PersistentTask.isCacheStale(for: cacheLocation, maxAge: maximumCacheAge)
+        }
+    }
+    // I wish Swift would let you capture self in a closure in an initializer when just the instance members it needs are initialized, instead of strictly *all* of them
+    private static func isCacheStale(for url: URL, maxAge: TimeInterval) -> Bool{
+        guard let cache = NSDictionary(contentsOf: url) else{
+            return true
+        }
+        guard let lastUpdateInterval = cache[PersistentTask.cacheLastUpdatedKey] as? TimeInterval else{
+            return true
+        }
+        let nextUpdate = Date(timeInterval: maxAge, since: Date(timeIntervalSince1970: lastUpdateInterval))
+        return Calendar.current.isDateInToday(nextUpdate) || Calendar.current.compare(nextUpdate, to: Date(), toGranularity: .day) == .orderedAscending
+    }
+    init(session: Session, request: Request, completionHandler: ResponseClosure?, cacheLocation: URL, cacheAge: TimeInterval){
+        self.cacheLocation = cacheLocation
+        self.maximumCacheAge = cacheAge
+        let callback: ResponseClosure = {(result: Result) in
+            if PersistentTask.isCacheStale(for: cacheLocation, maxAge: cacheAge){
+                guard var response = result.response else{
+                    return
+                }
+                response[PersistentTask.cacheLastUpdatedKey] = Date().timeIntervalSince1970 as AnyObject
+                let _ = (response as NSDictionary).write(to: cacheLocation, atomically: true)
+            }
+            completionHandler?(result)
+        }
+        super.init(session: session, request: request, completionHandler: callback)
+    }
+    convenience init(session: Session, request: Request, completionHandler: ResponseClosure?, cacheName: String, cacheAge: TimeInterval){
+        guard let caches = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else{
+            fatalError("Could not locate the caches directory")
+        }
+        if let cache = URL(string: cacheName + ".plist", relativeTo: caches){
+            self.init(session: session, request: request, completionHandler: completionHandler, cacheLocation: cache, cacheAge: cacheAge)
+        }
+        else{
+            self.init(session: session, request: request, completionHandler: completionHandler, cacheLocation: URL(string: "FoursquareCache.plist", relativeTo: caches)!, cacheAge: cacheAge)
+        }
+    }
+
+    override open func start() -> Void{
+        // Check if the cache exists and is valid. If so, just call the completion handler with a Result constructed from the cache. If not, just call super
+        if isCacheStale{
+            super.start()
+        }
+        else{
+            guard let completion = completionHandler else{
+                super.start()
+                return
+            }
+            guard let cachedResponse = NSDictionary(contentsOf: cacheLocation) else{
+                super.start()
+                return
+            }
+            let spoofed = Result()
+            spoofed.HTTPStatusCode = 200 // In case external code is checking for success via status code
+            spoofed.response = cachedResponse as? [String: AnyObject]
+            completion(spoofed)
+        }
     }
 }
 

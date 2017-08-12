@@ -23,7 +23,7 @@ open class Result: CustomStringConvertible {
     /** 
         HTTP response status code.
     */
-    open var HTTPSTatusCode: Int?
+    open var HTTPStatusCode: Int?
     
     /** 
         HTTP response headers.
@@ -71,7 +71,7 @@ open class Result: CustomStringConvertible {
     }
     
     open var description: String {
-        return "Status code: \(String(describing: HTTPSTatusCode))\nResponse: \(String(describing: response))\nError: \(String(describing: error))"
+        return "Status code: \(String(describing: HTTPStatusCode))\nResponse: \(String(describing: response))\nError: \(String(describing: error))"
     }
     
 }
@@ -89,7 +89,7 @@ extension Result {
         
         if let HTTPResponse = HTTPResponse {
             result.HTTPHeaders = HTTPResponse.allHeaderFields
-            result.HTTPSTatusCode = HTTPResponse.statusCode
+            result.HTTPStatusCode = HTTPResponse.statusCode
             result.URL = HTTPResponse.url
         }
         
